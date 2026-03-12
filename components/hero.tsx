@@ -1,6 +1,4 @@
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
 
 export function Hero() {
   return (
@@ -13,22 +11,13 @@ export function Hero() {
               مصنوع يدوياً بحب
             </span>
             <h1 className="mb-6 font-serif text-4xl font-bold leading-tight text-foreground md:text-5xl lg:text-6xl">
-              <span className="block text-balance">كريم ريتال</span>
-              <span className="block text-balance text-accent">للعناية بالجسم</span>
+              <span className="block text-balance">كريم الجسم</span>
+              <span className="block text-balance text-accent">للعناية بالبشرة</span>
             </h1>
             <p className="mx-auto mb-8 max-w-lg text-lg leading-relaxed text-muted-foreground lg:mx-0">
               تركيبة فاخرة من زيت اللوز الحلو والجلسرين النباتي مع فيتامين E.
               منتج حرفي يمنح بشرتك النعومة والإشراق الذي تستحقه.
             </p>
-            <div className="flex flex-col items-center gap-4 sm:flex-row lg:justify-start">
-              <Button size="lg" className="group gap-2 px-8">
-                تسوق الآن
-                <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-              </Button>
-              <Button variant="outline" size="lg" className="px-8">
-                اكتشف المزيد
-              </Button>
-            </div>
           </div>
 
           {/* Image */}

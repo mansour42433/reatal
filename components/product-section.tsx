@@ -62,12 +62,23 @@ export function ProductSection() {
                   {product.nameEn}
                 </p>
 
-                <div className="mb-6">
-                  <span className="text-3xl font-bold text-foreground">{product.price}</span>
-                  <span className="mr-1 text-lg text-muted-foreground">ر.س</span>
-                  {product.originalPrice && (
-                    <span className="mr-2 text-lg text-muted-foreground line-through">
-                      {product.originalPrice} ر.س
+                <div className="mb-6 flex items-center gap-4">
+                  <div>
+                    <span className="text-3xl font-bold text-foreground">{product.price}</span>
+                    <span className="mr-1 text-lg text-muted-foreground">ر.س</span>
+                    {product.originalPrice && (
+                      <span className="mr-2 text-lg text-muted-foreground line-through">
+                        {product.originalPrice} ر.س
+                      </span>
+                    )}
+                  </div>
+                  {product.stock === 0 ? (
+                    <span className="rounded-full bg-red-500 px-3 py-1 text-sm font-bold text-white">
+                      نفذ
+                    </span>
+                  ) : (
+                    <span className="rounded-full border border-green-600 px-3 py-1 text-sm text-green-600">
+                      متوفر
                     </span>
                   )}
                 </div>
@@ -114,7 +125,9 @@ export function ProductSection() {
                   <Button
                     size="lg"
                     className="flex-1 gap-2"
+                    disabled={product.stock === 0}
                     onClick={() => {
+                      if (product.stock === 0) return
                       for (let i = 0; i < quantity; i++) {
                         addItem({
                           id: product.id,
@@ -128,7 +141,9 @@ export function ProductSection() {
                       setQuantity(1)
                     }}
                   >
-                    {added ? (
+                    {product.stock === 0 ? (
+                      <>نفذ من المخزون</>
+                    ) : added ? (
                       <>
                         <Check className="h-5 w-5" />
                         تمت الإضافة

@@ -17,8 +17,8 @@ const arefRuqaa = Aref_Ruqaa({
 });
 
 export const metadata: Metadata = {
-  title: 'متجر ريتال | كريم ريتال للجسم',
-  description: 'كريم ريتال الفاخر للعناية بالجسم - مكونات طبيعية 100% لبشرة ناعمة ومشرقة',
+  title: 'متجر ريتال | كريم الجسم',
+  description: 'كريم الجسم الفاخر للعناية بالبشرة - مكونات طبيعية 100% لبشرة ناعمة ومشرقة',
   generator: 'v0.app',
   icons: {
     icon: [

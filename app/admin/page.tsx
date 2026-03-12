@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Package, ShoppingCart, Users, DollarSign, Search, LogOut, CircleCheck as CheckCircle, Clock, Truck, Circle as XCircle, Tag, Pencil, Trash2, Plus, Save, Lock, Eye, EyeOff, X } from "lucide-react"
 import Link from "next/link"
 import { Product, getAllProducts, updateProduct, addProduct, deleteProduct } from "@/lib/products-store"
+import { useCart } from "@/lib/cart-context"
 import Image from "next/image"
 
 const ADMIN_PASSWORD = "admin123"
@@ -44,22 +45,15 @@ interface Order {
   date: string
 }
 
-interface DiscountCode {
-  id: string
-  code: string
-  discount: number
-  active: boolean
-}
-
 const initialOrders: Order[] = [
   {
     id: "ORD-001",
     customerName: "سارة الأحمد",
     phone: "0501234567",
     city: "الرياض",
-    products: "كريم ريتال للجسم",
+    products: "كريم الجسم",
     quantity: 2,
-    total: 298,
+    total: 100,
     status: "pending",
     date: "2026-03-12"
   },
@@ -68,9 +62,9 @@ const initialOrders: Order[] = [
     customerName: "نورة العتيبي",
     phone: "0559876543",
     city: "جدة",
-    products: "كريم ريتال للجسم",
+    products: "كريم الجسم",
     quantity: 1,
-    total: 149,
+    total: 50,
     status: "processing",
     date: "2026-03-11"
   }
@@ -105,15 +99,12 @@ export default function AdminDashboard() {
     nameEn: "",
     price: 0,
     imageUrl: "/images/rital-cream.jpg",
-    active: true
+    active: true,
+    stock: 10
   })
 
-  // Discount codes state
-  const [discountCodes, setDiscountCodes] = useState<DiscountCode[]>([
-    { id: "1", code: "RITAL10", discount: 10, active: true },
-    { id: "2", code: "RITAL20", discount: 20, active: true },
-    { id: "3", code: "WELCOME", discount: 15, active: true },
-  ])
+  // Discount codes from cart context
+  const { discountCodes, addDiscountCode: addCode, toggleDiscountCode: toggleCode, deleteDiscountCode: deleteCode } = useCart()
   const [newCode, setNewCode] = useState("")
   const [newDiscount, setNewDiscount] = useState("")
 
@@ -162,7 +153,8 @@ export default function AdminDashboard() {
       nameEn: "",
       price: 0,
       imageUrl: "/images/rital-cream.jpg",
-      active: true
+      active: true,
+      stock: 10
     })
   }
 
@@ -182,33 +174,16 @@ export default function AdminDashboard() {
       price: product.price,
       originalPrice: product.originalPrice,
       description: product.description,
-      active: product.active
+      active: product.active,
+      stock: product.stock
     })
   }
 
-  const addDiscountCode = () => {
+  const handleAddDiscountCode = () => {
     if (!newCode || !newDiscount) return
-    setDiscountCodes([
-      ...discountCodes,
-      {
-        id: Date.now().toString(),
-        code: newCode.toUpperCase(),
-        discount: Number(newDiscount),
-        active: true
-      }
-    ])
+    addCode(newCode, Number(newDiscount))
     setNewCode("")
     setNewDiscount("")
-  }
-
-  const toggleDiscountCode = (id: string) => {
-    setDiscountCodes(discountCodes.map(c =>
-      c.id === id ? { ...c, active: !c.active } : c
-    ))
-  }
-
-  const deleteDiscountCode = (id: string) => {
-    setDiscountCodes(discountCodes.filter(c => c.id !== id))
   }
 
   const stats = {
@@ -378,7 +353,7 @@ export default function AdminDashboard() {
           <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
             <TabsTrigger value="products">المنتجات</TabsTrigger>
             <TabsTrigger value="orders">الطلبات</TabsTrigger>
-            <TabsTrigger value="discounts">أكواد الخصم</TabsTrigger>
+            <TabsTrigger value="discounts">��كواد الخصم</TabsTrigger>
           </TabsList>
 
           <TabsContent value="products">
@@ -442,6 +417,17 @@ export default function AdminDashboard() {
                             value={newProduct.originalPrice || ""}
                             onChange={(e) => setNewProduct({...newProduct, originalPrice: Number(e.target.value) || undefined})}
                             placeholder="199"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>المخزون</Label>
+                          <Input
+                            type="number"
+                            value={newProduct.stock || ""}
+                            onChange={(e) => setNewProduct({...newProduct, stock: Number(e.target.value)})}
+                            placeholder="10"
+                            min="0"
                           />
                         </div>
 
@@ -520,6 +506,16 @@ export default function AdminDashboard() {
                               />
                             </div>
 
+                            <div className="space-y-2">
+                              <Label>المخزون</Label>
+                              <Input
+                                type="number"
+                                value={editForm.stock ?? 0}
+                                onChange={(e) => setEditForm({...editForm, stock: Number(e.target.value)})}
+                                min="0"
+                              />
+                            </div>
+
                             <div className="space-y-2 md:col-span-2">
                               <Label>الوصف</Label>
                               <Textarea
@@ -572,6 +568,15 @@ export default function AdminDashboard() {
                                 <Badge variant={product.active ? "default" : "secondary"}>
                                   {product.active ? "نشط" : "غير نشط"}
                                 </Badge>
+                                {product.stock === 0 ? (
+                                  <Badge variant="destructive" className="bg-red-500 text-white">
+                                    نفذ
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-green-600 border-green-600">
+                                    المخزون: {product.stock}
+                                  </Badge>
+                                )}
                               </div>
                               <p className="text-sm text-muted-foreground">{product.nameEn}</p>
                               {product.description && (
@@ -764,7 +769,7 @@ export default function AdminDashboard() {
                       />
                     </div>
                     <div className="flex items-end">
-                      <Button onClick={addDiscountCode} className="w-full gap-2 sm:w-auto">
+                      <Button onClick={handleAddDiscountCode} className="w-full gap-2 sm:w-auto">
                         <Plus className="h-4 w-4" />
                         إضافة
                       </Button>
@@ -794,7 +799,7 @@ export default function AdminDashboard() {
                         <Button
                           size="sm"
                           variant={code.active ? "outline" : "default"}
-                          onClick={() => toggleDiscountCode(code.id)}
+                          onClick={() => toggleCode(code.id)}
                         >
                           {code.active ? "تعطيل" : "تفعيل"}
                         </Button>
@@ -802,7 +807,7 @@ export default function AdminDashboard() {
                           size="sm"
                           variant="ghost"
                           className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => deleteDiscountCode(code.id)}
+                          onClick={() => deleteCode(code.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
