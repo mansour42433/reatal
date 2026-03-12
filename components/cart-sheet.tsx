@@ -15,6 +15,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { useCart } from "@/lib/cart-context"
+import { addOrder } from "@/lib/orders-store"
 
 interface CustomerInfo {
   name: string
@@ -86,21 +87,30 @@ export function CartSheet() {
     
     setIsSubmitting(true)
     
-    // Simulate order submission
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 1000))
     
-    // Here you would normally send the order to your backend
-    const orderData = {
-      items,
-      customer: customerInfo,
+    // حفظ الطلب في localStorage
+    const order = addOrder({
+      customerName: customerInfo.name,
+      phone: customerInfo.phone,
+      city: customerInfo.city,
+      address: customerInfo.address,
+      notes: customerInfo.notes || undefined,
+      items: items.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        image: item.image
+      })),
       subtotal,
       discount,
-      total,
-      appliedCode,
-      orderDate: new Date().toISOString(),
-    }
+      discountCode: appliedCode || undefined,
+      total
+    })
     
-    console.log("Order submitted:", orderData)
+    console.log("Order submitted:", order)
     
     setIsSubmitting(false)
     setStep("success")
