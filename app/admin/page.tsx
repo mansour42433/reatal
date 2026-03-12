@@ -23,65 +23,21 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { Package, ShoppingCart, Users, DollarSign, Search, LogOut, CircleCheck as CheckCircle, Clock, Truck, Circle as XCircle, Tag, Pencil, Trash2, Plus, Save, Lock, Eye, EyeOff, X } from "lucide-react"
+import { Package, ShoppingCart, Users, DollarSign, Search, LogOut, CircleCheck as CheckCircle, Clock, Truck, Circle as XCircle, Tag, Pencil, Trash2, Plus, Save, Lock, Eye, EyeOff, X, Printer, MapPin, Phone, User } from "lucide-react"
 import Link from "next/link"
 import { Product, getAllProducts, updateProduct, addProduct, deleteProduct } from "@/lib/products-store"
+import { useCart } from "@/lib/cart-context"
+import { Order, OrderStatus, getAllOrders, updateOrderStatus as updateOrderStatusStore, deleteOrder, statusConfig } from "@/lib/orders-store"
 import Image from "next/image"
 
 const ADMIN_PASSWORD = "admin123"
 
-type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled"
-
-interface Order {
-  id: string
-  customerName: string
-  phone: string
-  city: string
-  products: string
-  quantity: number
-  total: number
-  status: OrderStatus
-  date: string
-}
-
-interface DiscountCode {
-  id: string
-  code: string
-  discount: number
-  active: boolean
-}
-
-const initialOrders: Order[] = [
-  {
-    id: "ORD-001",
-    customerName: "سارة الأحمد",
-    phone: "0501234567",
-    city: "الرياض",
-    products: "كريم ريتال للجسم",
-    quantity: 2,
-    total: 298,
-    status: "pending",
-    date: "2026-03-12"
-  },
-  {
-    id: "ORD-002",
-    customerName: "نورة العتيبي",
-    phone: "0559876543",
-    city: "جدة",
-    products: "كريم ريتال للجسم",
-    quantity: 1,
-    total: 149,
-    status: "processing",
-    date: "2026-03-11"
-  }
-]
-
-const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ElementType }> = {
-  pending: { label: "قيد الانتظار", color: "bg-amber-100 text-amber-800", icon: Clock },
-  processing: { label: "قيد التجهيز", color: "bg-blue-100 text-blue-800", icon: Package },
-  shipped: { label: "تم الشحن", color: "bg-purple-100 text-purple-800", icon: Truck },
-  delivered: { label: "تم التوصيل", color: "bg-green-100 text-green-800", icon: CheckCircle },
-  cancelled: { label: "ملغي", color: "bg-red-100 text-red-800", icon: XCircle }
+const statusIcons: Record<OrderStatus, React.ElementType> = {
+  pending: Clock,
+  processing: Package,
+  shipped: Truck,
+  delivered: CheckCircle,
+  cancelled: XCircle
 }
 
 export default function AdminDashboard() {
@@ -90,9 +46,10 @@ export default function AdminDashboard() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
 
-  const [orders, setOrders] = useState<Order[]>(initialOrders)
+  const [orders, setOrders] = useState<Order[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState<string>("all")
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
 
   // Products state
   const [products, setProducts] = useState<Product[]>([])
@@ -105,31 +62,137 @@ export default function AdminDashboard() {
     nameEn: "",
     price: 0,
     imageUrl: "/images/rital-cream.jpg",
-    active: true
+    active: true,
+    stock: 10
   })
 
-  // Discount codes state
-  const [discountCodes, setDiscountCodes] = useState<DiscountCode[]>([
-    { id: "1", code: "RITAL10", discount: 10, active: true },
-    { id: "2", code: "RITAL20", discount: 20, active: true },
-    { id: "3", code: "WELCOME", discount: 15, active: true },
-  ])
+  // Discount codes from cart context
+  const { discountCodes, addDiscountCode: addCode, toggleDiscountCode: toggleCode, deleteDiscountCode: deleteCode } = useCart()
   const [newCode, setNewCode] = useState("")
   const [newDiscount, setNewDiscount] = useState("")
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch =
       order.customerName.includes(searchTerm) ||
-      order.id.includes(searchTerm) ||
+      order.orderNumber.includes(searchTerm) ||
       order.phone.includes(searchTerm)
     const matchesStatus = filterStatus === "all" || order.status === filterStatus
     return matchesSearch && matchesStatus
   })
 
-  const updateOrderStatus = (orderId: string, newStatus: OrderStatus) => {
-    setOrders(orders.map(order =>
-      order.id === orderId ? { ...order, status: newStatus } : order
-    ))
+  const loadOrders = () => {
+    setOrders(getAllOrders())
+  }
+
+  const handleUpdateOrderStatus = (orderId: string, newStatus: OrderStatus) => {
+    updateOrderStatusStore(orderId, newStatus)
+    loadOrders()
+  }
+
+  const handleDeleteOrder = (orderId: string) => {
+    if (confirm("هل أنت متأكد من حذف هذا الطلب؟")) {
+      deleteOrder(orderId)
+      loadOrders()
+    }
+  }
+
+  const handlePrintOrder = (order: Order) => {
+    const printWindow = window.open("", "_blank")
+    if (!printWindow) return
+
+    const itemsList = order.items.map(item => `
+      <tr>
+        <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.name}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: left;">${item.price} ر.س</td>
+        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: left;">${item.price * item.quantity} ر.س</td>
+      </tr>
+    `).join("")
+
+    const html = `
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="UTF-8">
+        <title>طلب ${order.orderNumber}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; direction: rtl; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+          .header h1 { margin: 0; color: #333; }
+          .header p { margin: 5px 0; color: #666; }
+          .info-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
+          .info-box { flex: 1; padding: 15px; background: #f9f9f9; border-radius: 8px; margin: 0 5px; }
+          .info-box h3 { margin: 0 0 10px 0; color: #333; font-size: 14px; }
+          .info-box p { margin: 5px 0; font-size: 13px; }
+          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          th { background: #f5f5f5; padding: 10px; text-align: right; border-bottom: 2px solid #ddd; }
+          .totals { text-align: left; margin-top: 20px; }
+          .totals p { margin: 5px 0; }
+          .totals .total { font-size: 18px; font-weight: bold; color: #333; }
+          .footer { margin-top: 40px; text-align: center; color: #999; font-size: 12px; }
+          @media print { body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>متجر ريتال</h1>
+          <p>فاتورة طلب</p>
+        </div>
+        
+        <div class="info-section">
+          <div class="info-box">
+            <h3>معلومات الطلب</h3>
+            <p><strong>رقم الطلب:</strong> ${order.orderNumber}</p>
+            <p><strong>التاريخ:</strong> ${new Date(order.createdAt).toLocaleDateString("ar-SA")}</p>
+            <p><strong>الحالة:</strong> ${statusConfig[order.status].label}</p>
+          </div>
+          <div class="info-box">
+            <h3>معلومات العميل</h3>
+            <p><strong>الاسم:</strong> ${order.customerName}</p>
+            <p><strong>الجوال:</strong> ${order.phone}</p>
+            <p><strong>المدينة:</strong> ${order.city}</p>
+          </div>
+        </div>
+        
+        <div class="info-box" style="margin-bottom: 20px;">
+          <h3>العنوان</h3>
+          <p>${order.address}</p>
+          ${order.notes ? `<p><strong>ملاحظات:</strong> ${order.notes}</p>` : ""}
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>المنتج</th>
+              <th style="text-align: center;">الكمية</th>
+              <th style="text-align: left;">السعر</th>
+              <th style="text-align: left;">الإجمالي</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsList}
+          </tbody>
+        </table>
+
+        <div class="totals">
+          <p>المجموع الفرعي: ${order.subtotal} ر.س</p>
+          ${order.discount > 0 ? `<p style="color: green;">الخصم ${order.discountCode ? `(${order.discountCode})` : ""}: -${order.discount} ر.س</p>` : ""}
+          <p class="total">الإجمالي: ${order.total} ر.س</p>
+        </div>
+
+        <div class="footer">
+          <p>شكراً لتسوقكم من متجر ريتال</p>
+        </div>
+
+        <script>
+          window.onload = function() { window.print(); }
+        </script>
+      </body>
+      </html>
+    `
+    
+    printWindow.document.write(html)
+    printWindow.document.close()
   }
 
   const loadProducts = () => {
@@ -162,7 +225,8 @@ export default function AdminDashboard() {
       nameEn: "",
       price: 0,
       imageUrl: "/images/rital-cream.jpg",
-      active: true
+      active: true,
+      stock: 10
     })
   }
 
@@ -182,33 +246,16 @@ export default function AdminDashboard() {
       price: product.price,
       originalPrice: product.originalPrice,
       description: product.description,
-      active: product.active
+      active: product.active,
+      stock: product.stock
     })
   }
 
-  const addDiscountCode = () => {
+  const handleAddDiscountCode = () => {
     if (!newCode || !newDiscount) return
-    setDiscountCodes([
-      ...discountCodes,
-      {
-        id: Date.now().toString(),
-        code: newCode.toUpperCase(),
-        discount: Number(newDiscount),
-        active: true
-      }
-    ])
+    addCode(newCode, Number(newDiscount))
     setNewCode("")
     setNewDiscount("")
-  }
-
-  const toggleDiscountCode = (id: string) => {
-    setDiscountCodes(discountCodes.map(c =>
-      c.id === id ? { ...c, active: !c.active } : c
-    ))
-  }
-
-  const deleteDiscountCode = (id: string) => {
-    setDiscountCodes(discountCodes.filter(c => c.id !== id))
   }
 
   const stats = {
@@ -247,6 +294,7 @@ export default function AdminDashboard() {
       }
     }
     loadProducts()
+    loadOrders()
   }, [])
 
   if (!isAuthenticated) {
@@ -378,7 +426,7 @@ export default function AdminDashboard() {
           <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
             <TabsTrigger value="products">المنتجات</TabsTrigger>
             <TabsTrigger value="orders">الطلبات</TabsTrigger>
-            <TabsTrigger value="discounts">أكواد الخصم</TabsTrigger>
+            <TabsTrigger value="discounts">��كواد الخصم</TabsTrigger>
           </TabsList>
 
           <TabsContent value="products">
@@ -442,6 +490,17 @@ export default function AdminDashboard() {
                             value={newProduct.originalPrice || ""}
                             onChange={(e) => setNewProduct({...newProduct, originalPrice: Number(e.target.value) || undefined})}
                             placeholder="199"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>المخزون</Label>
+                          <Input
+                            type="number"
+                            value={newProduct.stock || ""}
+                            onChange={(e) => setNewProduct({...newProduct, stock: Number(e.target.value)})}
+                            placeholder="10"
+                            min="0"
                           />
                         </div>
 
@@ -520,6 +579,16 @@ export default function AdminDashboard() {
                               />
                             </div>
 
+                            <div className="space-y-2">
+                              <Label>المخزون</Label>
+                              <Input
+                                type="number"
+                                value={editForm.stock ?? 0}
+                                onChange={(e) => setEditForm({...editForm, stock: Number(e.target.value)})}
+                                min="0"
+                              />
+                            </div>
+
                             <div className="space-y-2 md:col-span-2">
                               <Label>الوصف</Label>
                               <Textarea
@@ -572,6 +641,15 @@ export default function AdminDashboard() {
                                 <Badge variant={product.active ? "default" : "secondary"}>
                                   {product.active ? "نشط" : "غير نشط"}
                                 </Badge>
+                                {product.stock === 0 ? (
+                                  <Badge variant="destructive" className="bg-red-500 text-white">
+                                    نفذ
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-green-600 border-green-600">
+                                    المخزون: {product.stock}
+                                  </Badge>
+                                )}
                               </div>
                               <p className="text-sm text-muted-foreground">{product.nameEn}</p>
                               {product.description && (
@@ -634,7 +712,10 @@ export default function AdminDashboard() {
             <Card>
               <CardHeader>
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <CardTitle className="text-xl">إدارة الطلبات</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <ShoppingCart className="h-5 w-5" />
+                    إدارة الطلبات
+                  </CardTitle>
                   <div className="flex flex-col gap-3 md:flex-row">
                     <div className="relative">
                       <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -662,70 +743,137 @@ export default function AdminDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-right">رقم الطلب</TableHead>
-                        <TableHead className="text-right">العميل</TableHead>
-                        <TableHead className="text-right">الهاتف</TableHead>
-                        <TableHead className="text-right">المدينة</TableHead>
-                        <TableHead className="text-right">الكمية</TableHead>
-                        <TableHead className="text-right">المبلغ</TableHead>
-                        <TableHead className="text-right">التاريخ</TableHead>
-                        <TableHead className="text-right">الحالة</TableHead>
-                        <TableHead className="text-right">تغيير الحالة</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredOrders.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
-                            لا توجد طلبات مطابقة للبحث
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        filteredOrders.map((order) => {
-                          const StatusIcon = statusConfig[order.status].icon
-                          return (
-                            <TableRow key={order.id}>
-                              <TableCell className="font-medium">{order.id}</TableCell>
-                              <TableCell>{order.customerName}</TableCell>
-                              <TableCell dir="ltr" className="text-right">{order.phone}</TableCell>
-                              <TableCell>{order.city}</TableCell>
-                              <TableCell>{order.quantity}</TableCell>
-                              <TableCell>{order.total} ر.س</TableCell>
-                              <TableCell>{order.date}</TableCell>
-                              <TableCell>
+                {filteredOrders.length === 0 ? (
+                  <div className="rounded-lg border-2 border-dashed border-border p-12 text-center">
+                    <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                    <p className="mt-4 text-muted-foreground">لا توجد طلبات حتى الآن</p>
+                    <p className="mt-2 text-sm text-muted-foreground">ستظهر الطلبات هنا عند استلامها من العملاء</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredOrders.map((order) => {
+                      const StatusIcon = statusIcons[order.status]
+                      const totalQuantity = order.items.reduce((sum, item) => sum + item.quantity, 0)
+                      return (
+                        <div
+                          key={order.id}
+                          className="rounded-lg border border-border bg-card p-4"
+                        >
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            {/* Order Info */}
+                            <div className="flex-1 space-y-3">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-mono text-lg font-bold text-foreground">{order.orderNumber}</span>
                                 <Badge className={`gap-1 ${statusConfig[order.status].color}`}>
                                   <StatusIcon className="h-3 w-3" />
                                   {statusConfig[order.status].label}
                                 </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Select
-                                  value={order.status}
-                                  onValueChange={(value) => updateOrderStatus(order.id, value as OrderStatus)}
-                                >
-                                  <SelectTrigger className="w-32">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="pending">قيد الانتظار</SelectItem>
-                                    <SelectItem value="processing">قيد التجهيز</SelectItem>
-                                    <SelectItem value="shipped">تم الشحن</SelectItem>
-                                    <SelectItem value="delivered">تم التوصيل</SelectItem>
-                                    <SelectItem value="cancelled">ملغي</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                            </TableRow>
-                          )
-                        })
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
+                                <span className="text-sm text-muted-foreground">
+                                  {new Date(order.createdAt).toLocaleDateString("ar-SA", {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit"
+                                  })}
+                                </span>
+                              </div>
+
+                              {/* Customer Details */}
+                              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                <div className="flex items-center gap-2 text-sm">
+                                  <User className="h-4 w-4 text-muted-foreground" />
+                                  <span className="font-medium">{order.customerName}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Phone className="h-4 w-4 text-muted-foreground" />
+                                  <span dir="ltr">{order.phone}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                                  <span>{order.city}</span>
+                                </div>
+                              </div>
+
+                              {/* Address */}
+                              <div className="rounded-md bg-muted/50 p-3">
+                                <p className="text-sm font-medium text-foreground">العنوان:</p>
+                                <p className="text-sm text-muted-foreground">{order.address}</p>
+                                {order.notes && (
+                                  <p className="mt-2 text-sm text-muted-foreground">
+                                    <span className="font-medium text-foreground">ملاحظات:</span> {order.notes}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Products */}
+                              <div className="space-y-2">
+                                <p className="text-sm font-medium text-foreground">المنتجات ({totalQuantity} قطعة):</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {order.items.map((item, idx) => (
+                                    <Badge key={idx} variant="outline" className="gap-1">
+                                      {item.name} × {item.quantity}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Totals */}
+                              <div className="flex flex-wrap items-center gap-4 text-sm">
+                                <span>المجموع: <span className="font-bold">{order.subtotal} ر.س</span></span>
+                                {order.discount > 0 && (
+                                  <span className="text-green-600">
+                                    خصم {order.discountCode && `(${order.discountCode})`}: -{order.discount} ر.س
+                                  </span>
+                                )}
+                                <span className="text-lg font-bold text-foreground">
+                                  الإجمالي: {order.total} ر.س
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+                              <Select
+                                value={order.status}
+                                onValueChange={(value) => handleUpdateOrderStatus(order.id, value as OrderStatus)}
+                              >
+                                <SelectTrigger className="w-full sm:w-40">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pending">قيد الانتظار</SelectItem>
+                                  <SelectItem value="processing">قيد التجهيز</SelectItem>
+                                  <SelectItem value="shipped">تم الشحن</SelectItem>
+                                  <SelectItem value="delivered">تم التوصيل</SelectItem>
+                                  <SelectItem value="cancelled">ملغي</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => handlePrintOrder(order)}
+                              >
+                                <Printer className="h-4 w-4" />
+                                طباعة
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                onClick={() => handleDeleteOrder(order.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                حذف
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -764,7 +912,7 @@ export default function AdminDashboard() {
                       />
                     </div>
                     <div className="flex items-end">
-                      <Button onClick={addDiscountCode} className="w-full gap-2 sm:w-auto">
+                      <Button onClick={handleAddDiscountCode} className="w-full gap-2 sm:w-auto">
                         <Plus className="h-4 w-4" />
                         إضافة
                       </Button>
@@ -794,7 +942,7 @@ export default function AdminDashboard() {
                         <Button
                           size="sm"
                           variant={code.active ? "outline" : "default"}
-                          onClick={() => toggleDiscountCode(code.id)}
+                          onClick={() => toggleCode(code.id)}
                         >
                           {code.active ? "تعطيل" : "تفعيل"}
                         </Button>
@@ -802,7 +950,7 @@ export default function AdminDashboard() {
                           size="sm"
                           variant="ghost"
                           className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => deleteDiscountCode(code.id)}
+                          onClick={() => deleteCode(code.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
