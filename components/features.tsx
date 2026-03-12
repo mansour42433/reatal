@@ -4,7 +4,7 @@ const features = [
   {
     icon: Leaf,
     title: "مكونات طبيعية 100%",
-    description: "زيت الزيتون والليمون وزبدة الشيا واللوز الطبيعي"
+    description: "زيت الزيتون وزبدة الشيا واللوز الطبيعي"
   },
   {
     icon: Sparkles,
