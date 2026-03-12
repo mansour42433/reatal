@@ -22,10 +22,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  Package, 
-  ShoppingCart, 
-  Users, 
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Package,
+  ShoppingCart,
+  Users,
   DollarSign,
   Search,
   LogOut,
@@ -40,9 +41,12 @@ import {
   Save,
   Lock,
   Eye,
-  EyeOff
+  EyeOff,
+  X
 } from "lucide-react"
 import Link from "next/link"
+import { Product, getAllProducts, updateProduct, addProduct, deleteProduct } from "@/lib/products-store"
+import Image from "next/image"
 
 const ADMIN_PASSWORD = "admin123"
 
@@ -58,13 +62,6 @@ interface Order {
   total: number
   status: OrderStatus
   date: string
-}
-
-interface Product {
-  id: string
-  name: string
-  price: number
-  originalPrice?: number
 }
 
 interface DiscountCode {
@@ -96,39 +93,6 @@ const initialOrders: Order[] = [
     total: 149,
     status: "processing",
     date: "2026-03-11"
-  },
-  {
-    id: "ORD-003",
-    customerName: "فاطمة الشمري",
-    phone: "0541112233",
-    city: "الدمام",
-    products: "كريم ريتال للجسم",
-    quantity: 3,
-    total: 447,
-    status: "shipped",
-    date: "2026-03-10"
-  },
-  {
-    id: "ORD-004",
-    customerName: "مريم القحطاني",
-    phone: "0533445566",
-    city: "مكة",
-    products: "كريم ريتال للجسم",
-    quantity: 1,
-    total: 149,
-    status: "delivered",
-    date: "2026-03-09"
-  },
-  {
-    id: "ORD-005",
-    customerName: "هند الدوسري",
-    phone: "0522334455",
-    city: "المدينة",
-    products: "كريم ريتال للجسم",
-    quantity: 2,
-    total: 298,
-    status: "cancelled",
-    date: "2026-03-08"
   }
 ]
 
@@ -145,18 +109,25 @@ export default function AdminDashboard() {
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
-  
+
   const [orders, setOrders] = useState<Order[]>(initialOrders)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState<string>("all")
-  
+
   // Products state
-  const [products, setProducts] = useState<Product[]>([
-    { id: "rital-cream", name: "كريم ريتال للجسم", price: 149 }
-  ])
+  const [products, setProducts] = useState<Product[]>([])
   const [editingProduct, setEditingProduct] = useState<string | null>(null)
-  const [newPrice, setNewPrice] = useState("")
-  
+  const [editForm, setEditForm] = useState<Partial<Product>>({})
+  const [showAddProduct, setShowAddProduct] = useState(false)
+  const [newProduct, setNewProduct] = useState<Omit<Product, 'id'>>({
+    name: "",
+    nameAr: "",
+    nameEn: "",
+    price: 0,
+    imageUrl: "/images/rital-cream.jpg",
+    active: true
+  })
+
   // Discount codes state
   const [discountCodes, setDiscountCodes] = useState<DiscountCode[]>([
     { id: "1", code: "RITAL10", discount: 10, active: true },
@@ -167,8 +138,8 @@ export default function AdminDashboard() {
   const [newDiscount, setNewDiscount] = useState("")
 
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = 
-      order.customerName.includes(searchTerm) || 
+    const matchesSearch =
+      order.customerName.includes(searchTerm) ||
       order.id.includes(searchTerm) ||
       order.phone.includes(searchTerm)
     const matchesStatus = filterStatus === "all" || order.status === filterStatus
@@ -176,18 +147,63 @@ export default function AdminDashboard() {
   })
 
   const updateOrderStatus = (orderId: string, newStatus: OrderStatus) => {
-    setOrders(orders.map(order => 
+    setOrders(orders.map(order =>
       order.id === orderId ? { ...order, status: newStatus } : order
     ))
   }
 
-  const updateProductPrice = (productId: string) => {
-    if (!newPrice) return
-    setProducts(products.map(p => 
-      p.id === productId ? { ...p, price: Number(newPrice) } : p
-    ))
-    setEditingProduct(null)
-    setNewPrice("")
+  const loadProducts = () => {
+    setProducts(getAllProducts())
+  }
+
+  const handleUpdateProduct = (productId: string) => {
+    if (!editForm.name || !editForm.price) return
+
+    const success = updateProduct(productId, editForm)
+    if (success) {
+      loadProducts()
+      setEditingProduct(null)
+      setEditForm({})
+    }
+  }
+
+  const handleAddProduct = () => {
+    if (!newProduct.name || !newProduct.nameAr || !newProduct.nameEn || !newProduct.price) {
+      alert("يرجى ملء جميع الحقول المطلوبة")
+      return
+    }
+
+    addProduct(newProduct)
+    loadProducts()
+    setShowAddProduct(false)
+    setNewProduct({
+      name: "",
+      nameAr: "",
+      nameEn: "",
+      price: 0,
+      imageUrl: "/images/rital-cream.jpg",
+      active: true
+    })
+  }
+
+  const handleDeleteProduct = (productId: string) => {
+    if (confirm("هل أنت متأكد من حذف هذا المنتج؟")) {
+      deleteProduct(productId)
+      loadProducts()
+    }
+  }
+
+  const startEditProduct = (product: Product) => {
+    setEditingProduct(product.id)
+    setEditForm({
+      name: product.name,
+      nameAr: product.nameAr,
+      nameEn: product.nameEn,
+      price: product.price,
+      originalPrice: product.originalPrice,
+      description: product.description,
+      active: product.active
+    })
   }
 
   const addDiscountCode = () => {
@@ -206,7 +222,7 @@ export default function AdminDashboard() {
   }
 
   const toggleDiscountCode = (id: string) => {
-    setDiscountCodes(discountCodes.map(c => 
+    setDiscountCodes(discountCodes.map(c =>
       c.id === id ? { ...c, active: !c.active } : c
     ))
   }
@@ -250,9 +266,9 @@ export default function AdminDashboard() {
         setIsAuthenticated(true)
       }
     }
+    loadProducts()
   }, [])
 
-  // Login Screen
   if (!isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
@@ -305,7 +321,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-muted/30">
-      {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="container mx-auto flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-4">
@@ -329,7 +344,6 @@ export default function AdminDashboard() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {/* Stats Cards */}
         <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -370,25 +384,272 @@ export default function AdminDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                العملاء
+                عدد المنتجات
               </CardTitle>
-              <Users className="h-5 w-5 text-muted-foreground" />
+              <Package className="h-5 w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-foreground">{stats.totalCustomers}</p>
+              <p className="text-3xl font-bold text-foreground">{products.length}</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Tabs for different sections */}
-        <Tabs defaultValue="orders" className="space-y-6">
+        <Tabs defaultValue="products" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
+            <TabsTrigger value="products">المنتجات</TabsTrigger>
             <TabsTrigger value="orders">الطلبات</TabsTrigger>
-            <TabsTrigger value="prices">الأسعار</TabsTrigger>
             <TabsTrigger value="discounts">أكواد الخصم</TabsTrigger>
           </TabsList>
 
-          {/* Orders Tab */}
+          <TabsContent value="products">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Package className="h-5 w-5" />
+                    إدارة المنتجات
+                  </CardTitle>
+                  <Button onClick={() => setShowAddProduct(true)} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    إضافة منتج
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {showAddProduct && (
+                    <div className="rounded-lg border-2 border-dashed border-border bg-muted/30 p-6">
+                      <div className="mb-4 flex items-center justify-between">
+                        <h3 className="text-lg font-semibold">إضافة منتج جديد</h3>
+                        <Button size="sm" variant="ghost" onClick={() => setShowAddProduct(false)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>الاسم (عربي)</Label>
+                          <Input
+                            value={newProduct.nameAr}
+                            onChange={(e) => setNewProduct({...newProduct, nameAr: e.target.value, name: e.target.value})}
+                            placeholder="كريم ريتال للجسم"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>الاسم (إنجليزي)</Label>
+                          <Input
+                            value={newProduct.nameEn}
+                            onChange={(e) => setNewProduct({...newProduct, nameEn: e.target.value})}
+                            placeholder="Rital Body Cream"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>السعر</Label>
+                          <Input
+                            type="number"
+                            value={newProduct.price || ""}
+                            onChange={(e) => setNewProduct({...newProduct, price: Number(e.target.value)})}
+                            placeholder="149"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>السعر الأصلي (اختياري)</Label>
+                          <Input
+                            type="number"
+                            value={newProduct.originalPrice || ""}
+                            onChange={(e) => setNewProduct({...newProduct, originalPrice: Number(e.target.value) || undefined})}
+                            placeholder="199"
+                          />
+                        </div>
+
+                        <div className="space-y-2 md:col-span-2">
+                          <Label>الوصف</Label>
+                          <Textarea
+                            value={newProduct.description || ""}
+                            onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
+                            placeholder="وصف المنتج..."
+                            rows={3}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setShowAddProduct(false)}>
+                          إلغاء
+                        </Button>
+                        <Button onClick={handleAddProduct}>
+                          <Plus className="ml-1 h-4 w-4" />
+                          إضافة المنتج
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {products.map((product) => (
+                    <div
+                      key={product.id}
+                      className="rounded-lg border border-border bg-card p-4"
+                    >
+                      {editingProduct === product.id ? (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-semibold">تعديل المنتج</h3>
+                            <Button size="sm" variant="ghost" onClick={() => {
+                              setEditingProduct(null)
+                              setEditForm({})
+                            }}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>الاسم (عربي)</Label>
+                              <Input
+                                value={editForm.nameAr || ""}
+                                onChange={(e) => setEditForm({...editForm, nameAr: e.target.value, name: e.target.value})}
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label>الاسم (إنجليزي)</Label>
+                              <Input
+                                value={editForm.nameEn || ""}
+                                onChange={(e) => setEditForm({...editForm, nameEn: e.target.value})}
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label>السعر</Label>
+                              <Input
+                                type="number"
+                                value={editForm.price || ""}
+                                onChange={(e) => setEditForm({...editForm, price: Number(e.target.value)})}
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label>السعر الأصلي</Label>
+                              <Input
+                                type="number"
+                                value={editForm.originalPrice || ""}
+                                onChange={(e) => setEditForm({...editForm, originalPrice: Number(e.target.value) || undefined})}
+                              />
+                            </div>
+
+                            <div className="space-y-2 md:col-span-2">
+                              <Label>الوصف</Label>
+                              <Textarea
+                                value={editForm.description || ""}
+                                onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+                                rows={3}
+                              />
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                id={`active-${product.id}`}
+                                checked={editForm.active ?? true}
+                                onChange={(e) => setEditForm({...editForm, active: e.target.checked})}
+                                className="h-4 w-4"
+                              />
+                              <Label htmlFor={`active-${product.id}`}>منتج نشط</Label>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end gap-2">
+                            <Button variant="outline" onClick={() => {
+                              setEditingProduct(null)
+                              setEditForm({})
+                            }}>
+                              إلغاء
+                            </Button>
+                            <Button onClick={() => handleUpdateProduct(product.id)}>
+                              <Save className="ml-1 h-4 w-4" />
+                              حفظ التغييرات
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="flex gap-4">
+                            <div className="relative h-20 w-20 overflow-hidden rounded-lg bg-muted">
+                              <Image
+                                src={product.imageUrl}
+                                alt={product.name}
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-foreground">{product.nameAr}</h3>
+                                <Badge variant={product.active ? "default" : "secondary"}>
+                                  {product.active ? "نشط" : "غير نشط"}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground">{product.nameEn}</p>
+                              {product.description && (
+                                <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                                  {product.description}
+                                </p>
+                              )}
+                              <div className="mt-2 flex items-baseline gap-2">
+                                <span className="text-2xl font-bold text-foreground">
+                                  {product.price} ر.س
+                                </span>
+                                {product.originalPrice && (
+                                  <span className="text-sm text-muted-foreground line-through">
+                                    {product.originalPrice} ر.س
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => startEditProduct(product)}
+                            >
+                              <Pencil className="ml-1 h-4 w-4" />
+                              تعديل
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => handleDeleteProduct(product.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {products.length === 0 && !showAddProduct && (
+                    <div className="rounded-lg border-2 border-dashed border-border p-12 text-center">
+                      <Package className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                      <p className="mt-4 text-muted-foreground">لا توجد منتجات</p>
+                      <Button onClick={() => setShowAddProduct(true)} className="mt-4" variant="outline">
+                        <Plus className="ml-1 h-4 w-4" />
+                        إضافة منتج جديد
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="orders">
             <Card>
               <CardHeader>
@@ -489,70 +750,6 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Prices Tab */}
-          <TabsContent value="prices">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <DollarSign className="h-5 w-5" />
-                  إدارة الأسعار
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {products.map((product) => (
-                    <div
-                      key={product.id}
-                      className="flex flex-col gap-4 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div>
-                        <h3 className="font-semibold text-foreground">{product.name}</h3>
-                        <p className="text-sm text-muted-foreground">معرف المنتج: {product.id}</p>
-                      </div>
-                      
-                      {editingProduct === product.id ? (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            value={newPrice}
-                            onChange={(e) => setNewPrice(e.target.value)}
-                            placeholder="السعر الجديد"
-                            className="w-32"
-                          />
-                          <span className="text-muted-foreground">ر.س</span>
-                          <Button size="sm" onClick={() => updateProductPrice(product.id)}>
-                            <Save className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setEditingProduct(null)}>
-                            إلغاء
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-4">
-                          <span className="text-2xl font-bold text-foreground">
-                            {product.price} ر.س
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setEditingProduct(product.id)
-                              setNewPrice(product.price.toString())
-                            }}
-                          >
-                            <Pencil className="ml-1 h-4 w-4" />
-                            تعديل
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Discount Codes Tab */}
           <TabsContent value="discounts">
             <Card>
               <CardHeader>
@@ -562,7 +759,6 @@ export default function AdminDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Add new code */}
                 <div className="rounded-lg border border-dashed border-border p-4">
                   <h4 className="mb-4 font-medium text-foreground">إضافة كود خصم جديد</h4>
                   <div className="flex flex-col gap-4 sm:flex-row">
@@ -596,14 +792,12 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Existing codes */}
                 <div className="space-y-3">
                   {discountCodes.map((code) => (
                     <div
                       key={code.id}
-                      className={`flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between ${
-                        code.active ? "border-border bg-card" : "border-muted bg-muted/50"
-                      }`}
+                      className={`flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between ${code.active ? "border-border bg-card" : "border-muted bg-muted/50"
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <Tag className={`h-5 w-5 ${code.active ? "text-primary" : "text-muted-foreground"}`} />

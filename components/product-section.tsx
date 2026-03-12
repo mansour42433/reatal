@@ -3,13 +3,25 @@
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { ShoppingBag, Star, Check } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useCart } from "@/lib/cart-context"
+import { getProducts, Product } from "@/lib/products-store"
 
 export function ProductSection() {
   const [quantity, setQuantity] = useState(1)
   const [added, setAdded] = useState(false)
   const { addItem } = useCart()
+  const [products, setProducts] = useState<Product[]>([])
+
+  useEffect(() => {
+    setProducts(getProducts())
+  }, [])
+
+  if (products.length === 0) {
+    return null
+  }
+
+  const product = products[0]
 
   return (
     <section id="products" className="bg-secondary/30 py-16 lg:py-24">
@@ -19,24 +31,22 @@ export function ProductSection() {
             منتجنا المميز
           </span>
           <h2 className="font-serif text-3xl font-bold text-foreground md:text-4xl">
-            كريم ريتال للجسم
+            {product.nameAr}
           </h2>
         </div>
 
         <div className="mx-auto max-w-5xl">
           <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
             <div className="grid lg:grid-cols-2">
-              {/* Product Image */}
               <div className="relative aspect-square bg-muted/50 lg:aspect-auto">
                 <Image
-                  src="/images/rital-cream.jpg"
-                  alt="كريم ريتال للجسم"
+                  src={product.imageUrl}
+                  alt={product.nameAr}
                   fill
                   className="object-cover"
                 />
               </div>
 
-              {/* Product Details */}
               <div className="flex flex-col justify-center p-8 lg:p-12">
                 <div className="mb-4 flex items-center gap-1">
                   {[...Array(5)].map((_, i) => (
@@ -46,20 +56,24 @@ export function ProductSection() {
                 </div>
 
                 <h3 className="mb-2 font-serif text-2xl font-bold text-foreground lg:text-3xl">
-                  زيت الاستحمام - ليمون وزيتون
+                  {product.nameAr}
                 </h3>
                 <p className="mb-2 text-sm text-muted-foreground">
-                  Artisan Body Oil
+                  {product.nameEn}
                 </p>
 
                 <div className="mb-6">
-                  <span className="text-3xl font-bold text-foreground">149</span>
+                  <span className="text-3xl font-bold text-foreground">{product.price}</span>
                   <span className="mr-1 text-lg text-muted-foreground">ر.س</span>
+                  {product.originalPrice && (
+                    <span className="mr-2 text-lg text-muted-foreground line-through">
+                      {product.originalPrice} ر.س
+                    </span>
+                  )}
                 </div>
 
                 <p className="mb-6 leading-relaxed text-muted-foreground">
-                  تركيبة فاخرة من زيت اللوز الحلو والجلسرين النباتي مع فيتامين E.
-                  يمنح بشرتك ترطيباً عميقاً ونعومة حريرية تدوم طوال اليوم.
+                  {product.description || "تركيبة فاخرة من زيت اللوز الحلو والجلسرين النباتي مع فيتامين E. يمنح بشرتك ترطيباً عميقاً ونعومة حريرية تدوم طوال اليوم."}
                 </p>
 
                 <div className="mb-6 space-y-3">
@@ -81,7 +95,6 @@ export function ProductSection() {
                   </div>
                 </div>
 
-                {/* Quantity & Add to Cart */}
                 <div className="flex flex-col gap-4 sm:flex-row">
                   <div className="flex items-center rounded-lg border border-border">
                     <button
@@ -98,16 +111,16 @@ export function ProductSection() {
                       +
                     </button>
                   </div>
-                  <Button 
-                    size="lg" 
+                  <Button
+                    size="lg"
                     className="flex-1 gap-2"
                     onClick={() => {
                       for (let i = 0; i < quantity; i++) {
                         addItem({
-                          id: "rital-cream",
-                          name: "كريم ريتال للجسم",
-                          price: 149,
-                          image: "/images/rital-cream.jpg"
+                          id: product.id,
+                          name: product.nameAr,
+                          price: product.price,
+                          image: product.imageUrl
                         })
                       }
                       setAdded(true)
