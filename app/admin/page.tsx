@@ -23,27 +23,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Package,
-  ShoppingCart,
-  Users,
-  DollarSign,
-  Search,
-  LogOut,
-  CheckCircle,
-  Clock,
-  Truck,
-  XCircle,
-  Tag,
-  Pencil,
-  Trash2,
-  Plus,
-  Save,
-  Lock,
-  Eye,
-  EyeOff,
-  X
-} from "lucide-react"
+import { Package, ShoppingCart, Users, DollarSign, Search, LogOut, CircleCheck as CheckCircle, Clock, Truck, Circle as XCircle, Tag, Pencil, Trash2, Plus, Save, Lock, Eye, EyeOff, X } from "lucide-react"
 import Link from "next/link"
 import { Product, getAllProducts, updateProduct, addProduct, deleteProduct } from "@/lib/products-store"
 import Image from "next/image"
