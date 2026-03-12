@@ -10,6 +10,7 @@ export interface Product {
   description?: string
   imageUrl: string
   active: boolean
+  stock: number // المخزون
 }
 
 // القيم الافتراضية للمنتجات
@@ -22,7 +23,8 @@ const defaultProducts: Product[] = [
     price: 50,
     description: "تركيبة فاخرة من زيت اللوز الحلو والجلسرين النباتي مع فيتامين E",
     imageUrl: "/images/rital-cream.jpg",
-    active: true
+    active: true,
+    stock: 10
   }
 ]
 

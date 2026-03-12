@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, ReactNode } from "react"
 
 export interface CartItem {
   id: string
@@ -10,9 +10,11 @@ export interface CartItem {
   image: string
 }
 
-interface DiscountCode {
+export interface DiscountCode {
+  id: string
   code: string
   discount: number // percentage
+  active: boolean
 }
 
 interface CartContextType {
@@ -28,13 +30,39 @@ interface CartContextType {
   appliedCode: string | null
   applyDiscount: (code: string) => boolean
   removeDiscount: () => void
+  discountCodes: DiscountCode[]
+  addDiscountCode: (code: string, discount: number) => void
+  toggleDiscountCode: (id: string) => void
+  deleteDiscountCode: (id: string) => void
 }
 
-const validCodes: DiscountCode[] = [
-  { code: "RITAL10", discount: 10 },
-  { code: "RITAL20", discount: 20 },
-  { code: "WELCOME", discount: 15 },
+const defaultDiscountCodes: DiscountCode[] = [
+  { id: "1", code: "RITAL10", discount: 10, active: true },
+  { id: "2", code: "RITAL20", discount: 20, active: true },
+  { id: "3", code: "WELCOME", discount: 15, active: true },
+  { id: "4", code: "ريتال", discount: 50, active: true },
 ]
+
+const DISCOUNT_STORAGE_KEY = "rital-discount-codes"
+
+const getStoredDiscountCodes = (): DiscountCode[] => {
+  if (typeof window === 'undefined') return defaultDiscountCodes
+  const stored = localStorage.getItem(DISCOUNT_STORAGE_KEY)
+  if (stored) {
+    try {
+      return JSON.parse(stored)
+    } catch {
+      return defaultDiscountCodes
+    }
+  }
+  return defaultDiscountCodes
+}
+
+const saveDiscountCodes = (codes: DiscountCode[]) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(DISCOUNT_STORAGE_KEY, JSON.stringify(codes))
+  }
+}
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
@@ -42,6 +70,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
   const [appliedCode, setAppliedCode] = useState<string | null>(null)
   const [discountPercent, setDiscountPercent] = useState(0)
+  const [discountCodes, setDiscountCodes] = useState<DiscountCode[]>(defaultDiscountCodes)
+
+  // Load discount codes from localStorage on mount
+  useEffect(() => {
+    setDiscountCodes(getStoredDiscountCodes())
+  }, [])
 
   const addItem = (item: Omit<CartItem, "quantity">) => {
     setItems((prev) => {
@@ -81,8 +115,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const total = subtotal - discount
 
   const applyDiscount = (code: string): boolean => {
-    const validCode = validCodes.find(
-      (c) => c.code.toLowerCase() === code.toLowerCase()
+    const validCode = discountCodes.find(
+      (c) => c.code.toLowerCase() === code.toLowerCase() && c.active
     )
     if (validCode) {
       setAppliedCode(validCode.code)
@@ -95,6 +129,32 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const removeDiscount = () => {
     setAppliedCode(null)
     setDiscountPercent(0)
+  }
+
+  const addDiscountCode = (code: string, discountAmount: number) => {
+    const newCode: DiscountCode = {
+      id: Date.now().toString(),
+      code: code.toUpperCase(),
+      discount: discountAmount,
+      active: true
+    }
+    const updatedCodes = [...discountCodes, newCode]
+    setDiscountCodes(updatedCodes)
+    saveDiscountCodes(updatedCodes)
+  }
+
+  const toggleDiscountCode = (id: string) => {
+    const updatedCodes = discountCodes.map(c =>
+      c.id === id ? { ...c, active: !c.active } : c
+    )
+    setDiscountCodes(updatedCodes)
+    saveDiscountCodes(updatedCodes)
+  }
+
+  const deleteDiscountCode = (id: string) => {
+    const updatedCodes = discountCodes.filter(c => c.id !== id)
+    setDiscountCodes(updatedCodes)
+    saveDiscountCodes(updatedCodes)
   }
 
   return (
@@ -112,6 +172,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         appliedCode,
         applyDiscount,
         removeDiscount,
+        discountCodes,
+        addDiscountCode,
+        toggleDiscountCode,
+        deleteDiscountCode,
       }}
     >
       {children}
