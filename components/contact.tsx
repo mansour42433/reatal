@@ -86,7 +86,7 @@ export function Contact() {
                 </h3>
                 <div className="space-y-4">
                   <a
-                    href="https://wa.me/966500000000"
+                    href="https://wa.me/966570407516"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-4 rounded-lg border border-border p-4 transition-colors hover:border-accent/50 hover:bg-muted/50"
@@ -96,11 +96,11 @@ export function Contact() {
                     </div>
                     <div>
                       <div className="font-medium text-foreground">واتساب</div>
-                      <div className="text-sm text-muted-foreground">تواصل مباشر</div>
+                      <div className="text-sm text-muted-foreground">0570407516</div>
                     </div>
                   </a>
                   <a
-                    href="https://instagram.com/rital_store"
+                    href="https://www.instagram.com/_2rital_store?igsh=NW96bm4xa2l1Mzgy"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-4 rounded-lg border border-border p-4 transition-colors hover:border-accent/50 hover:bg-muted/50"
@@ -110,7 +110,7 @@ export function Contact() {
                     </div>
                     <div>
                       <div className="font-medium text-foreground">انستقرام</div>
-                      <div className="text-sm text-muted-foreground">@rital_store</div>
+                      <div className="text-sm text-muted-foreground">@_2rital_store</div>
                     </div>
                   </a>
                 </div>
