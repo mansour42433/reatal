@@ -16,10 +16,10 @@ export interface Product {
 let productsStore: Product[] = [
   {
     id: "rital-cream",
-    name: "كريم ريتال للجسم",
-    nameAr: "كريم ريتال للجسم",
-    nameEn: "Rital Body Cream",
-    price: 149,
+    name: "كريم الجسم",
+    nameAr: "كريم الجسم",
+    nameEn: "Body Cream",
+    price: 50,
     description: "تركيبة فاخرة من زيت اللوز الحلو والجلسرين النباتي مع فيتامين E",
     imageUrl: "/images/rital-cream.jpg",
     active: true
