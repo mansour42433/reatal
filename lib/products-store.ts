@@ -12,19 +12,44 @@ export interface Product {
   active: boolean
 }
 
-// تخزين مؤقت للمنتجات (سيتم استبداله بـ Supabase لاحقاً)
-let productsStore: Product[] = [
+// القيم الافتراضية للمنتجات
+const defaultProducts: Product[] = [
   {
     id: "rital-cream",
-    name: "كريم ريتال للجسم",
-    nameAr: "كريم ريتال للجسم",
-    nameEn: "Rital Body Cream",
-    price: 149,
+    name: "كريم الجسم",
+    nameAr: "كريم الجسم",
+    nameEn: "Body Cream",
+    price: 50,
     description: "تركيبة فاخرة من زيت اللوز الحلو والجلسرين النباتي مع فيتامين E",
     imageUrl: "/images/rital-cream.jpg",
     active: true
   }
 ]
+
+// تخزين مؤقت للمنتجات (سيتم استبداله بـ Supabase لاحقاً)
+let productsStore: Product[] = [...defaultProducts]
+
+// دالة لإعادة تعيين المنتجات للقيم الافتراضية
+export const resetProducts = (): void => {
+  productsStore = [...defaultProducts]
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('rital-products', JSON.stringify(productsStore))
+  }
+}
+
+// تهيئة المنتجات عند التحميل
+if (typeof window !== 'undefined') {
+  const stored = localStorage.getItem('rital-products')
+  if (stored) {
+    const parsedProducts = JSON.parse(stored)
+    // تحقق من تحديث السعر
+    const existingProduct = parsedProducts.find((p: Product) => p.id === 'rital-cream')
+    if (existingProduct && existingProduct.price !== 50) {
+      // تحديث السعر والاسم في localStorage
+      resetProducts()
+    }
+  }
+}
 
 export const getProducts = (): Product[] => {
   if (typeof window !== 'undefined') {
